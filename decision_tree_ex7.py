@@ -121,4 +121,4 @@ X_train, X_test, y_train, y_test = train_test_split(XX, y, test_size=0.20, rando
 dt = DecisionTree()
 dt.train(X_train, y_train, max_depth=4)
 print("Accuracy:{0:.2f}%".format(dt.test(X_test, y_test)))
-# print(get_split_by_entropy(X_train, y_train))
+
