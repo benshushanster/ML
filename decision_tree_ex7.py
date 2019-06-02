@@ -7,9 +7,9 @@ class DecisionTree:
     def __init__(self):
         self._root = None
 
-    def train(self, x_train, y_train, max_depth=3):
+    def train(self, x_train, y_train, max_depth=3, use_gini=True):
         data = np.column_stack([x_train, y_train])
-        self._root = Node(data, 0, max_depth)
+        self._root = Node(data, 0, max_depth, use_gini)
 
     def test(self, x_test, y_test):
         correct = 0
@@ -24,12 +24,10 @@ class DecisionTree:
 
 class Node:
     @staticmethod
-    def split(data, idx, value, remove_feature_after_split=False):
+    def split(data, idx, value):
         predicate = data[:, idx] > value
         group_a = data[np.where(predicate)]
         group_b = data[np.where(np.logical_not(predicate))]
-        if remove_feature_after_split:
-            return np.delete(group_a, idx, axis=1), np.delete(group_b, idx, axis=1)
         return group_a, group_b
 
     @staticmethod
@@ -83,19 +81,19 @@ class Node:
         return res
 
     def get_split_by_gini(data):
-        max_gini = 0
+        min_gini = 1
         res = (None, None)
         for featureIdx in range(data.shape[1] - 1):
             for rowIdx in range(data.shape[0]):
                 value = data[rowIdx, featureIdx]
                 group_a, group_b = Node.split(data, featureIdx, value)
                 gini = Node.avg_gini(group_a, group_b)
-                if gini > max_gini:
-                    max_gini = gini
+                if gini <= min_gini:
+                    min_gini = gini
                     res = (featureIdx, value)
         return res
 
-    def __init__(self, data, depth, max_depth):
+    def __init__(self, data, depth, max_depth, use_gini):
         self.max_depth = max_depth
         self.depth = depth
         self.data = data
@@ -104,6 +102,7 @@ class Node:
         self.right = None
         self.featureIdx = None
         self.splitValue = None
+        self.use_gini = use_gini
         self._split_nodes()
 
     def _split_nodes(self):
@@ -113,19 +112,20 @@ class Node:
         # if only one item exit
         if self.data.shape[0] == 1:
             return
-        # if no features left exit
-        if self.data.shape[1] == 1:
-            return
 
-        self.featureIdx, self.splitValue = Node.get_split_by_gini(self.data)
+        if self.use_gini:
+            self.featureIdx, self.splitValue = Node.get_split_by_gini(self.data)
+        else:
+            self.featureIdx, self.splitValue = Node.get_split_by_entropy(self.data)
+
         if (self.featureIdx is None) or (self.splitValue is None):
             return
-        group_a, group_b = Node.split(self.data, self.featureIdx, self.splitValue, remove_feature_after_split=True)
+        group_a, group_b = Node.split(self.data, self.featureIdx, self.splitValue)
 
         if group_a.shape[0] > 0:
-            self.left = Node(group_a, self.depth + 1, self.max_depth)
+            self.left = Node(group_a, self.depth + 1, self.max_depth, self.use_gini)
         if group_b.shape[0] > 0:
-            self.right = Node(group_b, self.depth + 1, self.max_depth)
+            self.right = Node(group_b, self.depth + 1, self.max_depth, self.use_gini)
 
     def _is_leaf(self):
         return self.left is None and self.right is None
@@ -134,15 +134,19 @@ class Node:
         if self._is_leaf():
             return self.predicted
         if data[self.featureIdx] > self.splitValue:
-            return self.left.predict(np.delete(data, self.featureIdx))
-        return self.right.predict(np.delete(data, self.featureIdx))
+            if self.left is None:
+                return self.predicted
+            return self.left.predict(data)
+        if self.right is None:
+            return self.predicted
+        return self.right.predict(data)
 
 
 df = pd.read_csv('./wdbc.data', header=None)
 XX = (df.iloc[:, 2:]).values
 y = (df.iloc[:, 1] == 'M').values
 
-X_train, X_test, y_train, y_test = train_test_split(XX, y, test_size=0.20, random_state=90, shuffle=True)
+X_train, X_test, y_train, y_test = train_test_split(XX, y, test_size=0.30, random_state=70, shuffle=True)
 dt = DecisionTree()
-dt.train(X_train, y_train, max_depth=4)
-#print("Accuracy:{0:.2f}%".format(dt.test(X_test, y_test)))
+dt.train(X_train, y_train, max_depth=4, use_gini=True)
+print("Accuracy:{0:.2f}%".format(dt.test(X_test, y_test)))
