@@ -1,6 +1,6 @@
 import numpy as np
-import pandas as pd
-from sklearn.model_selection import train_test_split
+
+__all__ = ['DecisionTree']
 
 
 class DecisionTree:
@@ -66,7 +66,7 @@ class Node:
         return entropy - group_a.shape[0] / total * entropy_a - group_b.shape[0] / total * entropy_b
 
     @staticmethod
-    def get_split_by_entropy(data):
+    def get_split_by_entropy(data, random_features=False):
         entropy = Node.entropy(Node.probability(data))
         max_gain = 0
         res = (None, None)
@@ -80,9 +80,15 @@ class Node:
                     res = (featureIdx, value)
         return res
 
-    def get_split_by_gini(data):
+    @staticmethod
+    def get_split_by_gini(data, random_features=False):
         min_gini = 1
         res = (None, None)
+        # if random_features:
+        #     a = np.arange(20)
+        #     np.random.shuffle(a)
+        #     print(a[:10])
+
         for featureIdx in range(data.shape[1] - 1):
             for rowIdx in range(data.shape[0]):
                 value = data[rowIdx, featureIdx]
@@ -140,13 +146,3 @@ class Node:
         if self.right is None:
             return self.predicted
         return self.right.predict(data)
-
-
-df = pd.read_csv('./wdbc.data', header=None)
-XX = (df.iloc[:, 2:]).values
-y = (df.iloc[:, 1] == 'M').values
-
-X_train, X_test, y_train, y_test = train_test_split(XX, y, test_size=0.30, random_state=70, shuffle=True)
-dt = DecisionTree()
-dt.train(X_train, y_train, max_depth=4, use_gini=True)
-print("Accuracy:{0:.2f}%".format(dt.test(X_test, y_test)))
