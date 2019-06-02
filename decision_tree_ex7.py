@@ -46,6 +46,18 @@ class Node:
         return positives / data.shape[0]
 
     @staticmethod
+    def gini(p):
+        return 1 - (p ** 2 + (1 - p) ** 2)
+
+    @staticmethod
+    def avg_gini(group_a, group_b):
+        total = group_a.shape[0] + group_b.shape[0]
+        # calculate entropy for each group
+        gini_a = Node.gini(Node.probability(group_a))
+        gini_b = Node.gini(Node.probability(group_b))
+        return group_a.shape[0] / total * gini_a + group_b.shape[0] / total * gini_b
+
+    @staticmethod
     def gain(entropy, group_a, group_b):
         # calculating the total items in the both groups
         total = group_a.shape[0] + group_b.shape[0]
@@ -67,6 +79,19 @@ class Node:
                 gain = Node.gain(entropy, group_a, group_b)
                 if gain > max_gain:
                     max_gain = gain
+                    res = (featureIdx, value)
+        return res
+
+    def get_split_by_gini(data):
+        max_gini = 0
+        res = (None, None)
+        for featureIdx in range(data.shape[1] - 1):
+            for rowIdx in range(data.shape[0]):
+                value = data[rowIdx, featureIdx]
+                group_a, group_b = Node.split(data, featureIdx, value)
+                gini = Node.avg_gini(group_a, group_b)
+                if gini > max_gini:
+                    max_gini = gini
                     res = (featureIdx, value)
         return res
 
@@ -92,7 +117,7 @@ class Node:
         if self.data.shape[1] == 1:
             return
 
-        self.featureIdx, self.splitValue = Node.get_split_by_entropy(self.data)
+        self.featureIdx, self.splitValue = Node.get_split_by_gini(self.data)
         if (self.featureIdx is None) or (self.splitValue is None):
             return
         group_a, group_b = Node.split(self.data, self.featureIdx, self.splitValue, remove_feature_after_split=True)
@@ -120,5 +145,4 @@ y = (df.iloc[:, 1] == 'M').values
 X_train, X_test, y_train, y_test = train_test_split(XX, y, test_size=0.20, random_state=90, shuffle=True)
 dt = DecisionTree()
 dt.train(X_train, y_train, max_depth=4)
-print("Accuracy:{0:.2f}%".format(dt.test(X_test, y_test)))
-
+#print("Accuracy:{0:.2f}%".format(dt.test(X_test, y_test)))
