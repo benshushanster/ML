@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 
 __all__ = ['DecisionTree']
@@ -7,9 +9,9 @@ class DecisionTree:
     def __init__(self):
         self._root = None
 
-    def train(self, x_train, y_train, max_depth=3, use_gini=True):
+    def train(self, x_train, y_train, max_depth=3, use_gini=True, random_features=False):
         data = np.column_stack([x_train, y_train])
-        self._root = Node(data, 0, max_depth, use_gini)
+        self._root = Node(data, 0, max_depth, use_gini, random_features)
 
     def test(self, x_test, y_test):
         correct = 0
@@ -23,6 +25,7 @@ class DecisionTree:
 
 
 class Node:
+
     @staticmethod
     def split(data, idx, value):
         predicate = data[:, idx] > value
@@ -66,11 +69,16 @@ class Node:
         return entropy - group_a.shape[0] / total * entropy_a - group_b.shape[0] / total * entropy_b
 
     @staticmethod
-    def get_split_by_entropy(data, random_features=False):
+    def get_split_by_entropy(data, random_features):
         entropy = Node.entropy(Node.probability(data))
         max_gain = 0
         res = (None, None)
-        for featureIdx in range(data.shape[1] - 1):
+        features = range(data.shape[1] - 1)
+        if random_features:
+            # random samples features sqrt of th total size
+            features = random.sample(features, int(np.sqrt(data.shape[1] - 1)))
+
+        for featureIdx in features:
             for rowIdx in range(data.shape[0]):
                 value = data[rowIdx, featureIdx]
                 group_a, group_b = Node.split(data, featureIdx, value)
@@ -81,15 +89,14 @@ class Node:
         return res
 
     @staticmethod
-    def get_split_by_gini(data, random_features=False):
+    def get_split_by_gini(data, random_features):
         min_gini = 1
         res = (None, None)
-        # if random_features:
-        #     a = np.arange(20)
-        #     np.random.shuffle(a)
-        #     print(a[:10])
-
-        for featureIdx in range(data.shape[1] - 1):
+        features = range(data.shape[1] - 1)
+        if random_features:
+            # random samples features sqrt of th total size
+            features = random.sample(features, int(np.sqrt(data.shape[1] - 1)))
+        for featureIdx in features:
             for rowIdx in range(data.shape[0]):
                 value = data[rowIdx, featureIdx]
                 group_a, group_b = Node.split(data, featureIdx, value)
@@ -99,7 +106,7 @@ class Node:
                     res = (featureIdx, value)
         return res
 
-    def __init__(self, data, depth, max_depth, use_gini):
+    def __init__(self, data, depth, max_depth, use_gini, random_features):
         self.max_depth = max_depth
         self.depth = depth
         self.data = data
@@ -109,6 +116,7 @@ class Node:
         self.featureIdx = None
         self.splitValue = None
         self.use_gini = use_gini
+        self.random_features = random_features
         self._split_nodes()
 
     def _split_nodes(self):
@@ -120,18 +128,18 @@ class Node:
             return
 
         if self.use_gini:
-            self.featureIdx, self.splitValue = Node.get_split_by_gini(self.data)
+            self.featureIdx, self.splitValue = Node.get_split_by_gini(self.data, self.random_features)
         else:
-            self.featureIdx, self.splitValue = Node.get_split_by_entropy(self.data)
+            self.featureIdx, self.splitValue = Node.get_split_by_entropy(self.data, self.random_features)
 
         if (self.featureIdx is None) or (self.splitValue is None):
             return
         group_a, group_b = Node.split(self.data, self.featureIdx, self.splitValue)
 
         if group_a.shape[0] > 0:
-            self.left = Node(group_a, self.depth + 1, self.max_depth, self.use_gini)
+            self.left = Node(group_a, self.depth + 1, self.max_depth, self.use_gini, self.random_features)
         if group_b.shape[0] > 0:
-            self.right = Node(group_b, self.depth + 1, self.max_depth, self.use_gini)
+            self.right = Node(group_b, self.depth + 1, self.max_depth, self.use_gini, self.random_features)
 
     def _is_leaf(self):
         return self.left is None and self.right is None

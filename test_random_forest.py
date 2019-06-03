@@ -9,7 +9,5 @@ y = (df.iloc[:, 1] == 'M').values
 
 X_train, X_test, y_train, y_test = train_test_split(XX, y, test_size=0.30, random_state=70, shuffle=True)
 rf = RandomForest()
-
-t = rf._create_subsample(X_train)
-# dt.train(X_train, y_train, max_depth=4, use_gini=True)
-# print("Accuracy:{0:.2f}%".format(dt.test(X_test, y_test)))
+rf.train(X_train, y_train)
+print("Accuracy:{0:.2f}%".format(rf.test(X_test, y_test)))
